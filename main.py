@@ -11,8 +11,6 @@ import os
 openai.api_key = os.getenv("OPENAI_API_KEY")
 porcupine_access_key = os.getenv("PORCUPINE_ACCESS_KEY")
 
-print(openai.api_key)
-print(porcupine_access_key)
 # create recognizer object and microphone object from speech_recognition library.
 recognizer = sr.Recognizer()
 mic = sr.Microphone()
