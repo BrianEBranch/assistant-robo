@@ -11,6 +11,8 @@ import os
 openai.api_key = os.getenv("OPENAI_API_KEY")
 porcupine_access_key = os.getenv("PORCUPINE_ACCESS_KEY")
 
+print(openai.api_key)
+print(porcupine_access_key)
 # create recognizer object and microphone object from speech_recognition library.
 recognizer = sr.Recognizer()
 mic = sr.Microphone()
@@ -31,7 +33,7 @@ def get_gpt3_response(prompt):
 def speak(text):
     tts = gTTS(text=text, lang='en')
     tts.save("responses/response.mp3")
-    os.system("afplay response.mp3")
+    os.system("afplay responses/response.mp3")
 
 
 porcupine = pvporcupine.create(
@@ -41,15 +43,14 @@ porcupine = pvporcupine.create(
 
 pa = pyaudio.PyAudio()
 audio_stream = pa.open(
+    format=pyaudio.paInt16,
     rate=porcupine.sample_rate,
     channels=1,
-    format=pyaudio.paInt16,
     input=True,
+    output=True,
     frames_per_buffer=porcupine.frame_length
 )
 
-# def standby:
-#
 
 try:
     while True:
@@ -57,7 +58,7 @@ try:
         pcm = struct.unpack('h' * porcupine.frame_length, pcm)
         keyword_index = porcupine.process(pcm)
         if keyword_index >= 0:
-            with mic as source:
+            with sr.Microphone() as source:
                 speak("Hello, I am at your service")
                 audio = recognizer.listen(source)
                 try:
