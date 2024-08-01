@@ -1,17 +1,18 @@
-import openai
 from openai import OpenAI
-import speech_recognition as sr
-import pvporcupine
-import pyaudio
-import struct
-import platform
 from gtts import gTTS
 from playsound import playsound
 from dotenv import load_dotenv
 from datetime import datetime
+import speech_recognition as sr
+import platform
+import struct
+import openai
+import pvporcupine
+import pyaudio
 import os
 import run
 import re
+import fRecognition
 
 # get necessary keys from system env variables.
 load_dotenv()
@@ -29,6 +30,7 @@ client = OpenAI()
 # create thread, basically a conversation between user and ai.
 # if thread is created up here, stanley will retain memory of previous conversations.
 thread = client.beta.threads.create()
+#TODO instead of creating a new assistant I will pull one from openai api.
 stanley = client.beta.assistants.create(
     instructions="You are Stanley, a helpful assistant tasked with helping the user in any safe way possible. RESPOND "
                  "AS CONCISE AS POSSIBLE.",
@@ -37,18 +39,40 @@ stanley = client.beta.assistants.create(
     model="gpt-4o-mini",
 )
 
+def getPath():
+    if (opSystem == "Windows"):
+        kPath = ['windows/Hey-Stanley_en_windows_v3_0_0(1)/Hey-Stanley_en_windows_v3_0_0.ppn']
+    elif (opSystem == "Darwin"):
+        kPath = ['mac/Hey-Stanley_en_mac_v3_0_0/Hey-Stanley_en_mac_v3_0_0.ppn']
+    else:
+        kPath = ['placeholder for raspOs ppn/Unix']
+    return kPath
 
+
+porcupine = pvporcupine.create(
+    access_key=porcupine_access_key,
+    keyword_paths=getPath()
+)
+pa = pyaudio.PyAudio()
+audio_stream = pa.open(
+    format=pyaudio.paInt16,
+    rate=porcupine.sample_rate,
+    channels=1,
+    input=True,
+    output=True,
+    frames_per_buffer=porcupine.frame_length
+)
 # speak is a function that takes in some text and writes that text to our mp3 file which gets converted to tts
 def speak(text):
     tts = gTTS(text=text, lang='en')
-    if(text == "Hello, I am at your service"):
+    if (text == "Hello, I am at your service"):
         playsound("responses/stanley_hello.mp3")
-    elif(text == "I couldn't understand"):
+    elif (text == "I couldn't understand"):
         playsound("responses/stanley_error.mp3")
     else:
-        formattedTime = datetime.now().strftime("%I:%M:%S %p")
+        formattedTime = datetime.now().strftime("%D:%M:%Y:%S")
         fileName = f"responses_on_{formattedTime}.mp3"
-        #remove characters that are invalid for filenames
+        # remove characters that are invalid for filenames
         fileName = re.sub(r'[<>:"/\\|?*]', '', fileName)
         tts.save(f"responses/{fileName}")
         playsound(f"responses/{fileName}")
@@ -74,37 +98,24 @@ def get_gpt3_response(text):
         stream.until_done()
         speak(event_handler.generated_text)
 
-if (opSystem == "Windows"):
-    kPath = ['windows/Hey-Stanley_en_windows_v3_0_0(1)/Hey-Stanley_en_windows_v3_0_0.ppn']
-elif (opSystem == "Darwin"):
-    kPath = ['mac/Hey-Stanley_en_mac_v3_0_0/Hey-Stanley_en_mac_v3_0_0.ppn']
-else:
-    kPath = ['placeholder for raspOs ppn/Unix']
-
-porcupine = pvporcupine.create(
-    access_key=porcupine_access_key,
-    keyword_paths=kPath
-)
-
-pa = pyaudio.PyAudio()
-audio_stream = pa.open(
-    format=pyaudio.paInt16,
-    rate=porcupine.sample_rate,
-    channels=1,
-    input=True,
-    output=True,
-    frames_per_buffer=porcupine.frame_length
-)
 
 try:
     while True:
         pcm = audio_stream.read(porcupine.frame_length)
         pcm = struct.unpack('h' * porcupine.frame_length, pcm)
         keyword_index = porcupine.process(pcm)
+        print(keyword_index)
+        #TODO doesn't work need to somehow have the program continually watch for people until wakeword then return people in frame
+        names = fRecognition.recognize_face(keyword_index)
         if keyword_index >= 0:
-            speak("Hello, I am at your service")
+            print("entered name checking")
+            greetings = ""
+            for name in names:
+                greetings += name + ", "
+            print(greetings)
+            speak(f"Hello, {greetings}")
             with sr.Microphone() as source:
-                audio = recognizer.listen(source, None, 6)
+                audio = recognizer.listen(source, None, 5)
                 try:
                     text = recognizer.recognize_google(audio)
                     get_gpt3_response(text)

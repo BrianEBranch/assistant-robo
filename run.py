@@ -1,7 +1,7 @@
 # this file is meant to be used for creating and streaming a run from an assistant
-from openai.types.beta.threads import Text
-from typing_extensions import override
+
 from openai import AssistantEventHandler
+from typing_extensions import override
 
 
 class EventHandler(AssistantEventHandler):
